@@ -1,0 +1,25 @@
+endpoints:
+  PRD:
+    url: "https://api.restful-api.dev"
+    api_key: "PRD_API_KEY"
+    auth_header: "x-api-key"
+    auth_scheme: null
+    timeout: 30
+    enable: true
+
+  TST:
+    url: "https://api.restful-api.dev"
+    api_key: "TST_API_KEY"
+    auth_header: "x-api-key"
+    auth_scheme: null
+    timeout: 30
+    enable: true
+
+
+  TSTV2:
+    url: "https://api.restful-api.dev"
+    api_key: "TST_API_KEY"
+    auth_header: "x-api-key"
+    auth_scheme: null
+    timeout: 30
+    enable: true
