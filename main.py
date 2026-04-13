@@ -6,7 +6,8 @@ from contextlib import asynccontextmanager
 from dotenv import load_dotenv
 
 from dependencies import resolve_endpoint
-from tools import load_yaml, filter_headers
+from middleware import ProxyMiddleware, filter_headers
+from tools import load_yaml
 
 load_dotenv()
 
@@ -17,6 +18,7 @@ async def lifespan(app: FastAPI):
     yield
 
 app = fastapi.FastAPI(lifespan=lifespan)
+app.add_middleware(ProxyMiddleware)
 
 
 @app.get("/proxy/{env}/{path:path}")

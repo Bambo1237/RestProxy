@@ -1,7 +1,7 @@
 import os
 import yaml
 
-OP_BY_HOP_HEADERS = {
+HOP_BY_HOP_HEADERS = {
     "connection",
     "keep-alive",
     "proxy-authenticate",
@@ -18,7 +18,7 @@ def filter_headers(headers) -> dict:
     return {
         key: value
         for key, value in headers.items()
-        if key.lower() not in OP_BY_HOP_HEADERS
+        if key.lower() not in HOP_BY_HOP_HEADERS
     }
 
 def load_yaml() -> dict:
