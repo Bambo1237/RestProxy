@@ -1,7 +1,10 @@
-import fastapi
 from fastapi import FastAPI, HTTPException, Request, Response, Depends
 import httpx
 from contextlib import asynccontextmanager
+
+from slowapi import Limiter, _rate_limit_exceeded_handler
+from slowapi.errors import RateLimitExceeded
+from slowapi.util import get_remote_address
 
 from dotenv import load_dotenv
 
@@ -11,28 +14,36 @@ from tools import load_yaml
 
 load_dotenv()
 
+limiter = Limiter(
+    key_func=get_remote_address,
+    #storage_uri="redis://localhost:6379",
+    strategy="moving-window"
+)
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     app.state.endpoints = load_yaml()
+    app.state.http_client = httpx.AsyncClient(timeout=10.0)
     yield
+    await app.state.http_client.aclose()
 
-app = fastapi.FastAPI(lifespan=lifespan)
+app = FastAPI(lifespan=lifespan)
 app.add_middleware(ProxyMiddleware)
-
+app.state.limiter = limiter
+app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
 
 @app.get("/proxy/{env}/{path:path}")
-async def proxy_get(endpoints: dict = Depends(resolve_endpoint)):
+@limiter.limit("15/second;150/minute;1500/hour")
+async def proxy_get(request: Request, endpoints: dict = Depends(resolve_endpoint)):
 
-    target_url = endpoints["target_url"]
+    timeout = endpoints["timeout"]
 
-    headers = endpoints["headers"]
+    client:  httpx.AsyncClient = request.app.state.client
 
-    async with httpx.AsyncClient(timeout=endpoints.get("timeout")) as client:
-        try:
-            response = await client.get(target_url, headers=headers)
-        except httpx.HTTPError as e:
-            raise HTTPException(status_code=520, detail=str(e))
+    try:
+        response = await client.get(endpoints["target_url"], headers=endpoints["headers"], timeout=timeout)
+    except httpx.HTTPError as e:
+        raise HTTPException(status_code=520, detail=str(e))
 
     return Response(
         content=response.content,
@@ -42,18 +53,19 @@ async def proxy_get(endpoints: dict = Depends(resolve_endpoint)):
     )
 
 @app.post("/proxy/{env}/{path:path}")
+@limiter.limit("5/second;100/minute;1000/hour")
 async def proxy_post(request: Request, endpoints: dict = Depends(resolve_endpoint)):
 
-    target_url = endpoints["target_url"]
-    headers = endpoints["headers"]
+    timeout = endpoints["timeout"]
+
+    client: httpx.AsyncClient = request.app.state.http_client
 
     body = await request.body()
 
-    async with httpx.AsyncClient(timeout=endpoints.get("timeout")) as client:
-        try:
-            response = await client.post(target_url, headers=headers, content=body)
-        except httpx.HTTPError as e:
-            raise HTTPException(status_code=520, detail=str(e))
+    try:
+        response = await client.post(endpoints["target_url"], headers=endpoints["headers"], content=body, timeout=timeout)
+    except httpx.HTTPError as e:
+        raise HTTPException(status_code=520, detail=str(e))
 
     return Response(
         content=response.content,
