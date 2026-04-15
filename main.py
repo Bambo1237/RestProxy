@@ -8,6 +8,7 @@ from slowapi.util import get_remote_address
 
 from dotenv import load_dotenv
 
+from retry import fetchWithRetry
 from dependencies import resolve_endpoint
 from middleware import ProxyMiddleware, filter_headers
 from tools import load_yaml
@@ -38,10 +39,10 @@ async def proxy_get(request: Request, endpoints: dict = Depends(resolve_endpoint
 
     timeout = endpoints["timeout"]
 
-    client:  httpx.AsyncClient = request.app.state.client
+    client:  httpx.AsyncClient = request.app.state.http_client
 
     try:
-        response = await client.get(endpoints["target_url"], headers=endpoints["headers"], timeout=timeout)
+        response = await fetchWithRetry(client=client, method="GET", url=endpoints["target_url"], headers=endpoints["headers"], timeout=timeout)
     except httpx.HTTPError as e:
         raise HTTPException(status_code=520, detail=str(e))
 
