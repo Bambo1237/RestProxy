@@ -1,6 +1,6 @@
 import os
 import yaml
-
+import httpx
 HOP_BY_HOP_HEADERS = {
     "connection",
     "keep-alive",
@@ -32,3 +32,15 @@ def load_yaml() -> dict:
             endpoint["api_key"] = resolved
 
     return config
+
+
+def build_timeout(timeout_config) -> httpx.Timeout:
+    if isinstance(timeout_config, (int, float)):
+        return httpx.Timeout(timeout_config)
+
+    return httpx.Timeout(
+        connect=timeout_config.get("connect", 5.0),
+        read=timeout_config.get("read", 30.0),
+        write=timeout_config.get("write", 15.0),
+        pool=timeout_config.get("pool", 10)
+    )

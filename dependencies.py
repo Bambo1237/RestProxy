@@ -1,5 +1,6 @@
 from fastapi import HTTPException, Request
-from tools import filter_headers
+from tools import filter_headers, build_timeout
+
 
 async def resolve_endpoint(env: str, path: str, request: Request):
     endpoints = request.app.state.endpoints.get("endpoints", {})
@@ -29,5 +30,5 @@ async def resolve_endpoint(env: str, path: str, request: Request):
     return {
         "target_url": f"{endpoints[env]['url'].rstrip('/')}/{path}",
         "headers": headers,
-        "timeout": endpoint.get("timeout", 10),
+        "timeout": build_timeout(endpoint.get("timeout", 10))
     }

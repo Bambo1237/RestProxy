@@ -37,12 +37,20 @@ app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
 @limiter.limit("15/second;150/minute;1500/hour")
 async def proxy_get(request: Request, endpoints: dict = Depends(resolve_endpoint)):
 
-    timeout = endpoints["timeout"]
-
     client:  httpx.AsyncClient = request.app.state.http_client
 
     try:
-        response = await fetchWithRetry(client=client, method="GET", url=endpoints["target_url"], headers=endpoints["headers"], timeout=timeout)
+        response = await fetchWithRetry(
+            client=client,
+            method="GET",
+            url=endpoints["target_url"],
+            headers=endpoints["headers"],
+            timeout=endpoints["timeout"])
+
+    except httpx.ConnectError as e:
+        raise HTTPException(status_code=502, detail="Connect timeout")
+    except httpx.ReadTimeout as e:
+        raise HTTPException(status_code=504, detail="Read timeout")
     except httpx.HTTPError as e:
         raise HTTPException(status_code=520, detail=str(e))
 
@@ -64,7 +72,12 @@ async def proxy_post(request: Request, endpoints: dict = Depends(resolve_endpoin
     body = await request.body()
 
     try:
-        response = await client.post(endpoints["target_url"], headers=endpoints["headers"], content=body, timeout=timeout)
+        response = await client.post(
+            endpoints["target_url"],
+            headers=endpoints["headers"],
+            content=body,
+            timeout=timeout)
+
     except httpx.HTTPError as e:
         raise HTTPException(status_code=520, detail=str(e))
 
