@@ -1,5 +1,34 @@
+import os
+import yaml
+import httpx
 from fastapi import HTTPException, Request
-from tools import filter_headers, build_timeout
+
+from .middleware import filter_headers
+
+
+def load_yaml() -> dict:
+    with open("endpoints.yml", "r") as stream:
+        config = yaml.safe_load(stream)
+
+    for _, endpoint in config.get("endpoints", {}).items():
+        api_key_ref = endpoint.get("api_key", "")
+        resolved = os.getenv(api_key_ref)
+        if resolved:
+            endpoint["api_key"] = resolved
+
+    return config
+
+
+def build_timeout(timeout_config) -> httpx.Timeout:
+    if isinstance(timeout_config, (int, float)):
+        return httpx.Timeout(timeout_config)
+
+    return httpx.Timeout(
+        connect=timeout_config.get("connect", 5.0),
+        read=timeout_config.get("read", 30.0),
+        write=timeout_config.get("write", 15.0),
+        pool=timeout_config.get("pool", 10),
+    )
 
 
 async def resolve_endpoint(env: str, path: str, request: Request):
@@ -30,5 +59,6 @@ async def resolve_endpoint(env: str, path: str, request: Request):
     return {
         "target_url": f"{endpoints[env]['url'].rstrip('/')}/{path}",
         "headers": headers,
-        "timeout": build_timeout(endpoint.get("timeout", 10))
+        "timeout": build_timeout(endpoint.get("timeout", 10)),
+        "cache_ttl": endpoint.get("cache_ttl"),
     }

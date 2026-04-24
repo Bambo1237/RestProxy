@@ -3,7 +3,18 @@ from starlette.middleware.base import BaseHTTPMiddleware
 from starlette.requests import Request
 from starlette.responses import Response, JSONResponse
 
-from tools import filter_headers
+HOP_BY_HOP_HEADERS = {
+    "connection",
+    "keep-alive",
+    "proxy-authenticate",
+    "proxy-authorization",
+    "te",
+    "trailers",
+    "transfer-encoding",
+    "upgrade",
+    "host",
+    "content-length",
+}
 
 ALLOWED_CONTENT_TYPES = {
     "application/json",
@@ -18,6 +29,13 @@ MAX_BODY_SIZE = 10 * 1024 * 1024  # 10 MB
 
 _VALID_HEADER_NAME = re.compile(r"^[a-zA-Z0-9\-_]+$")
 
+
+def filter_headers(headers) -> dict:
+    return {
+        key: value
+        for key, value in headers.items()
+        if key.lower() not in HOP_BY_HOP_HEADERS
+    }
 
 
 class ProxyMiddleware(BaseHTTPMiddleware):
@@ -38,11 +56,10 @@ class ProxyMiddleware(BaseHTTPMiddleware):
 
         response = await call_next(request)
 
-
         filtered_headers = filter_headers(response.headers)
         for key in list(response.headers.keys()):
             if key not in filtered_headers:
-               del response.headers[key]
+                del response.headers[key]
 
         return response
 

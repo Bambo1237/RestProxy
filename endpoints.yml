@@ -6,6 +6,7 @@ endpoints:
     auth_scheme: null
     timeout: 30
     enable: true
+    cache_ttl: 60
 
   TST:
     url: "https://api.restful-api.dev"
@@ -19,7 +20,6 @@ endpoints:
       pool: 5.0
     enable: true
 
-
   TSTV2:
     url: "https://api.restful-api.dev"
     api_key: "TST_API_KEY"
@@ -27,3 +27,4 @@ endpoints:
     auth_scheme: null
     timeout: 30
     enable: true
+    cache_ttl: 30
